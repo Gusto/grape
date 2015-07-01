@@ -808,12 +808,13 @@ end
 
 Suppose some of your parameters are only relevant if another parameter is given;
 Grape allows you to express this relationship through the `given` method in your
-parameters block, like so:
+parameters block. You can optionally specify a value that the other parameter
+must be.
 
 ```ruby
 params do
   optional :shelf_id, type: Integer
-  given :shelf_id do
+  given :shelf_id, value: 5 do
     requires :bin_id, type: Integer
   end
 end

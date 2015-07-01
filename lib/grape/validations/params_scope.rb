@@ -19,12 +19,13 @@ module Grape
       #   validate if this param is present in the parent scope
       # @yield the instance context, open for parameter definitions
       def initialize(opts, &block)
-        @element      = opts[:element]
-        @parent       = opts[:parent]
-        @api          = opts[:api]
-        @optional     = opts[:optional] || false
-        @type         = opts[:type]
-        @dependent_on = opts[:dependent_on]
+        @element            = opts[:element]
+        @parent             = opts[:parent]
+        @api                = opts[:api]
+        @optional           = opts[:optional] || false
+        @type               = opts[:type]
+        @dependent_on       = opts[:dependent_on]
+        @dependent_on_value = opts[:dependent_on_value]
         @declared_params = []
 
         instance_eval(&block) if block_given?
@@ -36,9 +37,19 @@ module Grape
       #   validated
       def should_validate?(parameters)
         return false if @optional && params(parameters).respond_to?(:all?) && params(parameters).all?(&:blank?)
-        return false if @dependent_on && params(parameters).try(:[], @dependent_on).blank?
+        return false if should_not_validate_dependent?(parameters)
         return true if parent.nil?
         parent.should_validate?(parameters)
+      end
+
+      # @return [Boolean] whether or not this dependent should be validated
+      def should_not_validate_dependent?(parameters)
+        if @dependent_on
+          value = params(parameters).try(:[], @dependent_on)
+          value.to_s.blank? || (!@dependent_on_value.to_s.blank? && value != @dependent_on_value)
+        else
+          false
+        end
       end
 
       # @return [String] the proper attribute name, with nesting considered.
@@ -153,12 +164,13 @@ module Grape
       # @yield parameter scope
       def new_lateral_scope(options, &block)
         self.class.new(
-          api:          @api,
-          element:      nil,
-          parent:       self,
-          options:      @optional,
-          type:         Hash,
-          dependent_on: options[:dependent_on],
+          api:                @api,
+          element:            nil,
+          parent:             self,
+          options:            @optional,
+          type:               Hash,
+          dependent_on:       options[:dependent_on],
+          dependent_on_value: options[:dependent_on_value],
           &block)
       end
 

@@ -153,12 +153,16 @@ module Grape
       # the given parameter is present. The parameters are not nested.
       # @param attr [Symbol] the parameter which, if present, triggers the
       #   validations
+      # @option options :value [Object] the value that the dependent parameter
+      #   should match to trigger validations
       # @throws Grape::Exceptions::UnknownParameter if `attr` has not been
       #   defined in this scope yet
       # @yield a parameter definition DSL
-      def given(attr, &block)
+      def given(attr, options = {}, &block)
         fail Grape::Exceptions::UnknownParameter.new(attr) unless declared_param?(attr)
-        new_lateral_scope(dependent_on: attr, &block)
+        scope_options = { dependent_on: attr }
+        scope_options[:dependent_on_value] = options[:value] if options.key?(:value)
+        new_lateral_scope(scope_options, &block)
       end
 
       # Test for whether a certain parameter has been defined in this params

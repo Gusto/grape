@@ -273,57 +273,85 @@ describe Grape::Validations::ParamsScope do
   end
 
   context 'when validations are dependent on a parameter' do
-    before do
-      subject.params do
-        optional :a
-        given :a do
-          requires :b
-        end
-      end
-      subject.get('/test') { declared(params).to_json }
-    end
-
-    it 'applies the validations only if the parameter is present' do
-      get '/test'
-      expect(last_response.status).to eq(200)
-
-      get '/test', a: true
-      expect(last_response.status).to eq(400)
-      expect(last_response.body).to eq('b is missing')
-
-      get '/test', a: true, b: true
-      expect(last_response.status).to eq(200)
-    end
-
-    it 'raises an error if the dependent parameter was never specified' do
-      expect do
+    context 'when a value is not provided' do
+      before do
         subject.params do
-          given :c do
-          end
-        end
-      end.to raise_error(Grape::Exceptions::UnknownParameter)
-    end
-
-    it 'includes the parameter within #declared(params)' do
-      get '/test', a: true, b: true
-
-      expect(JSON.parse(last_response.body)).to eq('a' => 'true', 'b' => 'true')
-    end
-
-    it 'returns a sensible error message within a nested context' do
-      subject.params do
-        requires :bar, type: Hash do
           optional :a
           given :a do
             requires :b
           end
         end
+        subject.get('/test') { declared(params).to_json }
       end
-      subject.get('/nested') { 'worked' }
 
-      get '/nested', bar: { a: true }
-      expect(last_response.status).to eq(400)
-      expect(last_response.body).to eq('bar[b] is missing')
+      it 'applies the validations only if the parameter is present' do
+        get '/test'
+        expect(last_response.status).to eq(200)
+
+        get '/test', a: true
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to eq('b is missing')
+
+        get '/test', a: true, b: true
+        expect(last_response.status).to eq(200)
+      end
+
+      it 'raises an error if the dependent parameter was never specified' do
+        expect do
+          subject.params do
+            given :c do
+            end
+          end
+        end.to raise_error(Grape::Exceptions::UnknownParameter)
+      end
+
+      it 'includes the parameter within #declared(params)' do
+        get '/test', a: true, b: true
+
+        expect(JSON.parse(last_response.body)).to eq('a' => 'true', 'b' => 'true')
+      end
+
+      it 'returns a sensible error message within a nested context' do
+        subject.params do
+          requires :bar, type: Hash do
+            optional :a
+            given :a do
+              requires :b
+            end
+          end
+        end
+        subject.get('/nested') { 'worked' }
+
+        get '/nested', bar: { a: true }
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to eq('bar[b] is missing')
+      end
+    end
+
+    context 'when a value is provided' do
+      before do
+        subject.params do
+          optional :a, type: Integer
+          given :a, value: 5 do
+            requires :b
+          end
+        end
+        subject.get('/test') { declared(params).to_json }
+      end
+
+      it 'applies the validations only if the parameter is present and matches the value' do
+        get '/test'
+        expect(last_response.status).to eq(200)
+        get '/test', a: 1
+        expect(last_response.status).to eq(200)
+
+        get '/test', a: 5
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to eq('b is missing')
+
+        get '/test', a: 5, b: true
+        expect(last_response.status).to eq(200)
+      end
     end
   end
 end
